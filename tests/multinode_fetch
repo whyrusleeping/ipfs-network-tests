@@ -2,26 +2,45 @@
 
 . tests/lib.sh
 
-for i in `seq 10`
+size=$1
+numnodes=$2
+
+RESULTS_DIR=${RESULTS_DIR:-results}
+size=${size:-1}
+numnodes=${numnodes:-10}
+
+for i in `seq $numnodes`
 do
 	nodes[$i]=$(docker run -d ipfs-node)
 done
 
+# network parameters can be adjusted here
+if [ -n "$NET_SETUP" ]
+then
+	${NET_SETUP}
+fi
+
+# wait for nodes to come online
+# TODO: better way to do this
 sleep 2
 
-for i in `seq 9`
+for i in `seq $(expr $numnodes - 1)`
 do
-	connect_nodes ${nodes[$i]} ${nodes[10]}
+	connect_nodes ${nodes[$i]} ${nodes[$numnodes]}
 done
 
-HASH=$(addfile ${nodes[1]} 1)
-for i in `seq 10`
+mkdir -p $RESULTS_DIR
+
+HASH=$(addfile ${nodes[1]} $numnodes)
+for i in `seq $numnodes`
 do
-	catfile ${nodes[$i]} $HASH &
+	catfile ${nodes[$i]} $HASH > $RESULTS_DIR/output$i &
 done
+
+# wait for all cats to complete
 wait
 
-for i in `seq 10`
+for i in `seq $numnodes`
 do
 	docker kill ${nodes[$i]}
 done

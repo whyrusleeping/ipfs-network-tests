@@ -1,15 +1,20 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"time"
-
-	hum "github.com/dustin/go-humanize"
 )
+
+type Output struct {
+	Total    int64
+	Duration time.Duration
+	BW       float64
+}
 
 func main() {
 	if len(os.Args) < 2 {
@@ -32,6 +37,18 @@ func main() {
 
 	took := time.Now().Sub(before)
 	bw := float64(n) / took.Seconds()
-	fmt.Printf("fetched %d bytes in %s\n", n, took)
-	fmt.Printf("speed = %s\n", hum.IBytes(uint64(bw)))
+
+	out := Output{
+		Total:    n,
+		Duration: took,
+		BW:       bw,
+	}
+
+	data, err := json.MarshalIndent(out, "", "\t")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	fmt.Println(string(data))
 }
