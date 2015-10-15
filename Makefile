@@ -6,6 +6,7 @@ docker: deps
 deps: bwcurl ipfs
 
 ipfs: 
+	go get github.com/ipfs/go-ipfs
 	mkdir -p bin
 	go build -o bin/ipfs github.com/ipfs/go-ipfs/cmd/ipfs
 
