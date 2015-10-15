@@ -1,0 +1,27 @@
+#!/bin/bash
+
+. tests/lib.sh
+
+for i in `seq 10`
+do
+	nodes[$i]=$(docker run -d ipfs-node)
+done
+
+sleep 2
+
+for i in `seq 9`
+do
+	connect_nodes ${nodes[$i]} ${nodes[10]}
+done
+
+HASH=$(addfile ${nodes[1]} 1)
+for i in `seq 10`
+do
+	catfile ${nodes[$i]} $HASH &
+done
+wait
+
+for i in `seq 10`
+do
+	docker kill ${nodes[$i]}
+done
