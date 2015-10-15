@@ -1,0 +1,52 @@
+#!/bin/bash
+
+ctnr1=$1
+ctnr2=$2
+
+addfile() {
+	ctnr=$1
+	size=$2
+	docker exec $ctnr /bin/addfile $size
+}
+
+catfile() {
+	ctnr=$1
+	file=$2
+	docker exec $ctnr /bin/bwcurl http://localhost:8080/ipfs/$file
+}
+
+connect_nodes() {
+	addr=$(docker exec $1 /bin/ipfs id -f "<addrs>" | grep 172.17)
+	if [ -z $addr ]
+	then
+		echo "no addresses found on ipfsnode: $1"
+		exit 1
+	fi
+	docker exec $2 /bin/ipfs swarm connect $addr
+}
+
+if [ -z $ctnr1 ]
+then
+	echo "must specify two docker containers"
+	exit 1
+fi
+
+if [ -z $ctnr2 ]
+then
+	echo "must specify two docker containers"
+	exit 1
+fi
+
+connect_nodes $ctnr1 $ctnr2
+
+size=$3
+if [ -z $size ]
+then
+	size=1
+fi
+
+echo "running test with file of size $size MB"
+
+HASH=$(addfile $ctnr1 20)
+catfile $ctnr2 $HASH
+
