@@ -6,6 +6,8 @@ RESULTS_DIR=${RESULTS_DIR:-results}
 size=${1:-1}
 numnodes=${2:-10}
 
+echo numnodes: $numnodes
+
 for i in `seq $numnodes`
 do
 	nodes[$i]=$(docker run -d ipfs-node)
@@ -14,8 +16,13 @@ done
 # network parameters can be adjusted here
 if [ -n "$NET_SETUP" ]
 then
-	${NET_SETUP}
+	echo bash -c "$NET_SETUP"
+	bash -c "$NET_SETUP"
 fi
+
+ctrlnet ls
+
+exit 0
 
 # wait for nodes to come online
 # TODO: better way to do this
