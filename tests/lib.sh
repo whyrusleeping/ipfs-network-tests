@@ -1,7 +1,7 @@
 
 connect_nodes() {
 	addr=$(docker exec $1 /bin/ipfs id -f "<addrs>" | grep 172.17)
-	if [ -z $addr ]
+	if [ -z "$addr" ]
 	then
 		echo "no addresses found on ipfsnode: $1"
 		exit 1

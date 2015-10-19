@@ -29,5 +29,15 @@ to. It defaults to `results`
 First, ensure docker is running, and you have the 'ubuntu' image pulled, then:
 ```
 $ make
-./tests/multinode_fetch
+$ ./tests/multinode_fetch
 ```
+
+To run with a simulated network, try:
+```
+$ export NET_SETUP="ctrlnet lat 30ms 5ms; ctrlnet rate 10mbit"
+$ ./tests/multinode_fetch
+```
+
+This will run tests on a network where nodes have a 60ms average RTT between
+them (5ms jitter). And a bandwidth limit of 10mbit.
+

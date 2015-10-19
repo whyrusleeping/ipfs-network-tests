@@ -3,7 +3,7 @@ all: docker
 docker: deps
 	docker build --tag=ipfs-node .
 
-deps: bwcurl ipfs
+deps: bwcurl rand ipfs
 
 ipfs: 
 	go get github.com/ipfs/go-ipfs
@@ -12,3 +12,7 @@ ipfs:
 
 bwcurl: utils/bwcurl/main.go
 	go build -o bin/bwcurl utils/bwcurl/main.go
+
+rand: utils/rand/main.go
+	go build -o bin/rand utils/rand/main.go
+

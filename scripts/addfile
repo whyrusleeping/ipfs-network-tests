@@ -1,4 +1,4 @@
 #!/bin/bash
 
 size=$1
-dd if=/dev/urandom count=$size bs=1M | ipfs add -q 2> /dev/null
+/bin/rand $size | ipfs add -q 2> /dev/null
