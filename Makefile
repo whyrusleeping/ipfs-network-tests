@@ -16,3 +16,5 @@ bwcurl: utils/bwcurl/main.go
 rand: utils/rand/main.go
 	go build -o bin/rand utils/rand/main.go
 
+nettest: nettest.go
+	go build nettest.go
