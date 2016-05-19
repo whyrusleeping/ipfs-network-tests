@@ -1,4 +1,5 @@
 #!/bin/bash
 
 size=$1
-/bin/rand $size | ipfs add -q 2> /dev/null
+/bin/randfiles -depth=3 -dirs=10 -files=10 /stuff > /dev/null
+ipfs add -r -q /stuff | tail -n1 2> /dev/null

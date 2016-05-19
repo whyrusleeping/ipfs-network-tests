@@ -1,4 +1,4 @@
-all: docker
+all: docker nettest
 
 docker: deps
 	docker build --tag=ipfs-node .
@@ -14,7 +14,8 @@ bwcurl: utils/bwcurl/main.go
 	go build -o bin/bwcurl utils/bwcurl/main.go
 
 rand: utils/rand/main.go
-	go build -o bin/rand utils/rand/main.go
+	go get github.com/jbenet/go-random-files/random-files
+	go build -o bin/randfiles github.com/jbenet/go-random-files/random-files
 
 nettest: nettest.go
-	go build nettest.go
+	go build

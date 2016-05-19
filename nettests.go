@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 )
 
 var verbose bool
+var noclean bool
 
 func log(fstr string, args ...interface{}) {
 	if verbose {
@@ -46,6 +48,8 @@ type FetchStat struct {
 	Duration time.Duration
 	Total    int
 	BW       float64
+
+	DupBlocks int
 }
 
 type MultinodeOutput struct {
@@ -61,6 +65,28 @@ func (mo *MultinodeOutput) AverageBandwidth() float64 {
 	return sum / float64(len(mo.FetchStats))
 }
 
+func getDupBlocksFromNode(n string) (int, error) {
+	bstat, err := runCmdOnNode(n, "/bin/ipfs", "bitswap", "stat")
+	if err != nil {
+		return -1, err
+	}
+
+	lines := strings.Split(bstat, "\n")
+	for _, l := range lines {
+		if strings.Contains(l, "dup blocks") {
+			fs := strings.Fields(l)
+			n, err := strconv.Atoi(fs[len(fs)-1])
+			if err != nil {
+				return -1, err
+			}
+
+			return int(n), nil
+		}
+	}
+
+	return -1, fmt.Errorf("no dup blocks field in output")
+}
+
 func RunMultinode(p *MultinodeParams) (*MultinodeOutput, error) {
 	var nodes []string
 	for i := 0; i < p.NumNodes; i++ {
@@ -73,6 +99,9 @@ func RunMultinode(p *MultinodeParams) (*MultinodeOutput, error) {
 	}
 
 	defer func() {
+		if noclean {
+			return
+		}
 		for _, n := range nodes {
 			err := killNode(n)
 			if err != nil {
@@ -102,25 +131,36 @@ func RunMultinode(p *MultinodeParams) (*MultinodeOutput, error) {
 		}
 	}
 
+	log("creating a file")
+
 	hash, err := runCmdOnNode(nodes[1], "/bin/addfile", fmt.Sprint(p.FileSize))
 	if err != nil {
 		return nil, err
 	}
-	hash = strings.Trim(hash, "\n \t")
+	hash = strings.TrimSpace(hash)
+	log("fetching ref: %s", hash)
 
 	results := make(chan *FetchStat, len(nodes))
-	errs := make(chan error)
+	errs := make(chan error, len(nodes))
 	for i, node := range nodes {
 		if i == 1 {
 			// dont run test for the adder
 			continue
 		}
-		go func(n string) {
-			out, err := catFile(n, hash)
+		func(n string) {
+			out, err := getFile(n, hash)
 			if err != nil {
 				errs <- err
 				return
 			}
+
+			dupn, err := getDupBlocksFromNode(n)
+			if err != nil {
+				errs <- err
+				return
+			}
+
+			out.DupBlocks = dupn
 
 			results <- out
 		}(node)
@@ -158,6 +198,7 @@ func setNetworkParams(np *cn.LinkSettings) error {
 	}
 
 	for _, iface := range ifs {
+		log("setting link info on %s", iface)
 		err := cn.SetLink(iface, np)
 		if err != nil {
 			return err
@@ -170,7 +211,7 @@ func runCmdOnNode(id string, cmd ...string) (string, error) {
 	args := append([]string{"exec", "-t", id}, cmd...)
 	out, err := exec.Command("docker", args...).CombinedOutput()
 	if err != nil {
-		perr("cmd '%s' failed: %s\n", cmd, string(out))
+		perr("cmd '%q' failed: %q\n", cmd, string(out))
 		return "", err
 	}
 
@@ -191,7 +232,7 @@ func getNodeAddress(id string) (string, error) {
 	parts := strings.Split(out, "\n")
 	for _, a := range parts {
 		if strings.HasPrefix(a, "/ip4/172.17") {
-			return a, nil
+			return strings.TrimSpace(a), nil
 		}
 	}
 
@@ -213,12 +254,30 @@ func catFile(id, file string) (*FetchStat, error) {
 	return fs, nil
 }
 
+func getFile(id, hash string) (*FetchStat, error) {
+	url := "http://localhost:8080/api/v0/get/" + hash
+	log("getting url %q", url)
+	out, err := runCmdOnNode(id, "/bin/bwcurl", url)
+	if err != nil {
+		return nil, err
+	}
+
+	fs := new(FetchStat)
+	err = json.Unmarshal([]byte(out), fs)
+	if err != nil {
+		return nil, err
+	}
+
+	return fs, nil
+}
+
 func main() {
 	app := cli.NewApp()
 	app.Email = "why@ipfs.io"
 	app.Name = "ipfs-bench"
 	app.Action = func(context *cli.Context) error {
 		verbose = context.Bool("verbose")
+		noclean = context.Bool("noclean")
 		params := &MultinodeParams{
 			NumNodes: context.Int("numnodes"),
 			FileSize: context.Int("filesize"),
@@ -233,7 +292,8 @@ func main() {
 		}
 
 		for _, f := range res.FetchStats {
-			log("%v\n", f)
+			hb := hum.IBytes(uint64(f.BW))
+			fmt.Printf("Took: %s, Average BW: %s, TX Size: %d, DupBlocks: %d\n", f.Duration, hb, f.Total, f.DupBlocks)
 		}
 		fmt.Println(hum.IBytes(uint64(res.AverageBandwidth())))
 		return nil
@@ -258,6 +318,10 @@ func main() {
 		cli.BoolFlag{
 			Name:  "verbose",
 			Usage: "print verbose logging info",
+		},
+		cli.BoolFlag{
+			Name:  "noclean",
+			Usage: "do not clean up docker nodes after test",
 		},
 	}
 	app.Run(os.Args)

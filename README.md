@@ -8,8 +8,12 @@
 
 ## Building
 
-Just run make.
+Run make.
 
 ## Usage
+
+```sh
+sudo ./ipfs-network-test --verbose --latency=10
+```
 
 
