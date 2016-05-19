@@ -139,7 +139,7 @@ func RunMultinode(p *MultinodeParams) (*MultinodeOutput, error) {
 }
 
 func startDockerNode(img string) (string, error) {
-	out, err := exec.Command("docker", "run", "-d", img).CombinedOutput()
+	out, err := exec.Command("docker", "run", "-dt", img).CombinedOutput()
 	if err != nil {
 		perr("Node start failed: ", string(out))
 		return "", err
@@ -167,7 +167,7 @@ func setNetworkParams(np *cn.LinkSettings) error {
 }
 
 func runCmdOnNode(id string, cmd ...string) (string, error) {
-	args := append([]string{"exec", id}, cmd...)
+	args := append([]string{"exec", "-t", id}, cmd...)
 	out, err := exec.Command("docker", args...).CombinedOutput()
 	if err != nil {
 		perr("cmd '%s' failed: %s\n", cmd, string(out))
@@ -217,22 +217,26 @@ func main() {
 	app := cli.NewApp()
 	app.Email = "why@ipfs.io"
 	app.Name = "ipfs-bench"
-	app.Action = func(context *cli.Context) {
+	app.Action = func(context *cli.Context) error {
 		verbose = context.Bool("verbose")
 		params := &MultinodeParams{
 			NumNodes: context.Int("numnodes"),
 			FileSize: context.Int("filesize"),
+			Net: &cn.LinkSettings{
+				Latency: context.Int("latency"),
+			},
 		}
 		res, err := RunMultinode(params)
 		if err != nil {
 			perr("error running tests: %s", err)
-			return
+			return nil
 		}
 
 		for _, f := range res.FetchStats {
 			log("%v\n", f)
 		}
 		fmt.Println(hum.IBytes(uint64(res.AverageBandwidth())))
+		return nil
 	}
 
 	app.Flags = []cli.Flag{
