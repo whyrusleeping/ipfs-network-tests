@@ -17,5 +17,5 @@ rand: utils/rand/main.go
 	go get github.com/jbenet/go-random-files/random-files
 	go build -o bin/randfiles github.com/jbenet/go-random-files/random-files
 
-nettest: nettest.go
+nettest: nettests.go
 	go build

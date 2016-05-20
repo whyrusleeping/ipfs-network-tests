@@ -16,4 +16,3 @@ Run make.
 sudo ./ipfs-network-test --verbose --latency=10
 ```
 
-
